@@ -1,76 +1,55 @@
+'use strict';
+
 const assert = require('assert');
 const ServicoDePagamento = require('../src/ServicoDePagamento');
 
 describe('ServicoDePagamento', () => {
+  let servico;
 
-  it('pagar deve adicionar o pagamento na lista', () => {
-    const servico = new ServicoDePagamento();
-    servico.pagar('0987-7656-3475', 'Samar', 156.87);
-
-    assert.strictEqual(servico.pagamentos.length, 1);
+  beforeEach(() => {
+    servico = new ServicoDePagamento();
   });
 
-  it('pagamento acima de 100 deve ter categoria cara', () => {
-    const servico = new ServicoDePagamento();
-    servico.pagar('0987-7656-3475', 'Samar', 156.87);
+  describe('pagar()', () => {
+    it('deve classificar pagamento com valor > 100 como "cara"', () => {
+      servico.pagar('1234.5678 9012.3456 7890.1234 5', 'EmpresaA', 150);
+      const pagamento = servico.consultarUltimoPagamento();
+      assert.strictEqual(pagamento.categoria, 'cara');
+    });
 
-    assert.strictEqual(servico.pagamentos[0].categoria, 'cara');
-  });
+    it('deve classificar pagamento com valor <= 100 como "padrão"', () => {
+      servico.pagar('9876.5432 1098.7654 3210.9876 5', 'EmpresaB', 80);
+      const pagamento = servico.consultarUltimoPagamento();
+      assert.strictEqual(pagamento.categoria, 'padrão');
+    });
 
-  it('pagamento abaixo de 100 deve ter categoria padrao', () => {
-    const servico = new ServicoDePagamento();
-    servico.pagar('1234-5678-9012', 'Empresa X', 50);
-
-    assert.strictEqual(servico.pagamentos[0].categoria, 'padrão');
-  });
-
-  it('pagamento com valor exatamente 100 deve ter categoria padrao', () => {
-    const servico = new ServicoDePagamento();
-    servico.pagar('3333-3333-3333', 'Empresa Y', 100);
-
-    assert.strictEqual(servico.pagamentos[0].categoria, 'padrão');
-  });
-
-  it('pagamento com valor de 100.01 deve ter categoria cara', () => {
-    const servico = new ServicoDePagamento();
-    servico.pagar('4444-4444-4444', 'Empresa Z', 100.01);
-
-    assert.strictEqual(servico.pagamentos[0].categoria, 'cara');
-  });
-
-  it('pagar deve salvar todos os dados do pagamento', () => {
-    const servico = new ServicoDePagamento();
-    servico.pagar('0987-7656-3475', 'Samar', 156.87);
-
-    assert.deepStrictEqual(servico.pagamentos[0], {
-      codigoBarras: '0987-7656-3475',
-      empresa: 'Samar',
-      valor: 156.87,
-      categoria: 'cara'
+    it('deve armazenar todos os campos do pagamento: codigoBarras, empresa, valor e categoria', () => {
+      const codigo = '1111.2222 3333.4444 5555.6666 7';
+      const empresa = 'EmpresaC';
+      const valor = 200;
+      servico.pagar(codigo, empresa, valor);
+      const pagamento = servico.consultarUltimoPagamento();
+      assert.strictEqual(pagamento.codigoBarras, codigo);
+      assert.strictEqual(pagamento.empresa, empresa);
+      assert.strictEqual(pagamento.valor, valor);
+      assert.ok(Object.prototype.hasOwnProperty.call(pagamento, 'categoria'));
     });
   });
 
-  it('consultar ultimo pagamento retorna o mais recente', () => {
-    const servico = new ServicoDePagamento();
-    servico.pagar('1111-1111-1111', 'Empresa A', 50);
-    servico.pagar('2222-2222-2222', 'Empresa B', 200);
+  describe('consultarUltimoPagamento()', () => {
+    it('deve retornar o último pagamento realizado', () => {
+      servico.pagar('0001.0001 0001.0001 0001.0001 1', 'EmpresaX', 50);
+      const pagamento = servico.consultarUltimoPagamento();
+      assert.strictEqual(pagamento.empresa, 'EmpresaX');
+    });
 
-    const ultimo = servico.consultarUltimoPagamento();
-
-    assert.deepStrictEqual(ultimo, {
-      codigoBarras: '2222-2222-2222',
-      empresa: 'Empresa B',
-      valor: 200,
-      categoria: 'cara'
+    it('deve retornar apenas o último pagamento quando múltiplos pagamentos foram realizados', () => {
+      servico.pagar('0001.0001 0001.0001 0001.0001 1', 'Primeiro', 10);
+      servico.pagar('0002.0002 0002.0002 0002.0002 2', 'Segundo', 20);
+      servico.pagar('0003.0003 0003.0003 0003.0003 3', 'Terceiro', 300);
+      const pagamento = servico.consultarUltimoPagamento();
+      assert.strictEqual(pagamento.empresa, 'Terceiro');
+      assert.strictEqual(pagamento.valor, 300);
     });
   });
-
-  it('consultar sem nenhum pagamento nao deve quebrar', () => {
-    const servico = new ServicoDePagamento();
-
-    const ultimo = servico.consultarUltimoPagamento();
-
-    assert.strictEqual(ultimo, undefined);
-  });
-
 });

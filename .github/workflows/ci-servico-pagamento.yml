@@ -1,0 +1,70 @@
+# Pipeline CI/CD — Serviço de Pagamento
+# Executa testes unitários com Mocha e publica relatório HTML (mochawesome) como artefato.
+
+name: CI - Serviço de Pagamento
+
+# ─── Gatilhos ────────────────────────────────────────────────────────────────
+# push: executa automaticamente ao enviar commits para a branch main.
+# workflow_dispatch: permite disparo manual pela interface do GitHub Actions.
+# schedule: disparo único agendado para 02:10 UTC (23:10 BRT) do dia 22/06/2026.
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+  schedule:
+    - cron: '10 2 22 6 *'
+
+# ─── Concorrência ────────────────────────────────────────────────────────────
+# Cancela runs anteriores do mesmo branch/evento para evitar execuções obsoletas.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# ─── Jobs ────────────────────────────────────────────────────────────────────
+jobs:
+  testes-unitarios:
+    # Ambiente de execução: Ubuntu mais recente disponível no GitHub Actions.
+    runs-on: ubuntu-latest
+
+    # Diretório padrão para todos os steps com "run:", evitando repetição de cd.
+    defaults:
+      run:
+        working-directory: "Programação para automação de testes/Trabalho de conclusão da disciplina"
+
+    steps:
+      # ── Step 1: Checkout ──────────────────────────────────────────────────
+      # Baixa o código do repositório no runner.
+      - name: Checkout do repositório
+        uses: actions/checkout@v4
+
+      # ── Step 2: Setup Node.js ─────────────────────────────────────────────
+      # Instala o Node.js 20 LTS e habilita cache do npm para acelerar builds.
+      - name: Configurar Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: "Programação para automação de testes/Trabalho de conclusão da disciplina/package-lock.json"
+
+      # ── Step 3: Instalar dependências ─────────────────────────────────────
+      # Instala exatamente as versões do package-lock.json (reprodutível).
+      - name: Instalar dependências
+        run: npm ci
+
+      # ── Step 4: Executar testes e gerar relatório ─────────────────────────
+      # Roda os testes com o reporter mochawesome, gerando HTML interativo.
+      # continue-on-error garante que o artefato seja publicado mesmo com falhas.
+      - name: Executar testes e gerar relatório mochawesome
+        run: npm run test:report
+        continue-on-error: true
+
+      # ── Step 5: Publicar artefato ─────────────────────────────────────────
+      # Armazena o relatório HTML por 30 dias, acessível na aba Summary do run.
+      - name: Publicar relatório como artefato
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mochawesome-report-${{ github.run_number }}
+          path: "Programação para automação de testes/Trabalho de conclusão da disciplina/mochawesome-report/"
+          retention-days: 30
